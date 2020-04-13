@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
@@ -15,6 +16,8 @@ public class ParsersManager implements Runnable {
 
     @Override
     public void run() {
+        try {
+
             service = Executors.newFixedThreadPool(maxNumberOfThreads);
 
 
@@ -43,8 +46,10 @@ public class ParsersManager implements Runnable {
                     futures.pollFirst();
                 }
             }
-
+        } catch (IOException e) {
+            System.exit(-1);
         }
+    }
 
 
     public static synchronized void addTasks(ArrayList<Parser> tasks) {
