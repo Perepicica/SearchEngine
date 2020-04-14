@@ -1,45 +1,36 @@
-import freemarker.cache.ClassTemplateLoader;
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 
-import freemarker.template.Configuration;
-import spark.ModelAndView;
-import spark.template.freemarker.FreeMarkerEngine;
-
-import java.util.*;
-
-import static spark.Spark.*;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Throwable {
+        int port = DEFAULT_PORT;
+        if (args.length > 0) {
+            port = Integer.parseInt(args[0]);
+        }
+        ServerSocket serverSocket = null;
+        try {
+            serverSocket = new ServerSocket(port);
+            System.out.println("Server started on port: "
+                    + serverSocket.getLocalPort() + "\n");
+        } catch (IOException e) {
+            System.out.println("Port " + port + " is blocked.");
+            System.exit(-1);
+        }
         ParsingPart.parser();
-        FreeMarkerEngine freeMarkerEngine = new FreeMarkerEngine();
-        Configuration freeMarkerConfiguration = new Configuration();
-        freeMarkerConfiguration.setTemplateLoader(new ClassTemplateLoader(Main.class, "/"));
-        freeMarkerEngine.setConfiguration(freeMarkerConfiguration);
-        get("/", (request, response) -> {
-            String req = request.queryParams("search");
-            if(req == null) {
-                Map<String, Object> model = new HashMap<>();
-                return freeMarkerEngine.render(new ModelAndView(model, "index.ftl"));
-            } else {
-                response.redirect("/response?search="+req);
-                return null;
+        while (true) {
+            try {
+                Socket clientSocket = serverSocket.accept();
+                ClientSession session = new ClientSession(clientSocket);
+                new Thread(session).start();
+            } catch (IOException e) {
+                System.out.println("Failed to establish connection.");
+                System.out.println(e.getMessage());
+                System.exit(-1);
             }
-        });
-        get("/response", (request, response) -> {
-            Set<String> result = Ranging.selectRequest(request.queryParams("search"));
-            if (result == null){
-                response.redirect("/notfound");
-                return null;
-            }
-            List<String> aList = new ArrayList<>();
-            aList.addAll(result);
-            Map<String, Object> model = new HashMap<>();
-            model.put("urls", aList);
-            return freeMarkerEngine.render(new ModelAndView(model, "response.ftl"));
-        });
-        get("/notfound", (request, response) -> {
-            Map<String, Object> model = new HashMap<>();
-            return freeMarkerEngine.render(new ModelAndView(model, "notFound.ftl"));
-        });
+        }
     }
+
+    private static final int DEFAULT_PORT = 8080;
 }
